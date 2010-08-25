@@ -1,5 +1,5 @@
 <?php
 return array(
-		'rebuild_db.php' => new RebuildGeoIpDatabase(),
+		'update_db.php' => new UtilScript('update_db.php', 'Update GeoIP database'),
 );
 ?>

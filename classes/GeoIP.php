@@ -12,12 +12,16 @@ class GeoIP extends Object {
 		$countries;
 
 	function __construct() {
-		$this->db = new SQLiteDatabase(PATH.'tmp/geoip.sqlite', 0600, $error); 
+		$dbFile = PATH.'tmp/geoip.sqlite';
+		if (file_exists($dbFile) == false) {
+			copy(dirname(__FILE__).'/../data/geoip.sqlite', $dbFile);
+		}
+		$this->db = new SQLiteDatabase($dbFile, 0600, $error); 
 		if (!$this->db) {
 			throw new Exception($error);
 		}
 		if (!$this->table_exists('country') || !$this->table_exists('ip2country')) {
-			throw new Exception('GeoIP database is corrupt, run `php modules/geoip/utils/rebuild_db.php`');
+			throw new Exception('GeoIP database is corrupt, run `php sledgehammer/geoip/utils/upgrade.php`');
 		}
 		$countries = $this->db->query('SELECT code, name FROM country ORDER BY code ASC', SQLITE_ASSOC);
 		foreach ($countries as $row) {
