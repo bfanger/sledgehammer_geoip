@@ -99,7 +99,7 @@ foreach($csv as $index => $row) {
 }
 $db->query('COMMIT');
 echo " done\n  Upgrading module data...";
-copy($csvFile, dirname(__FILE__).'/../data/geoip.sqlite');
+copy($dbFile, dirname(__FILE__).'/../data/geoip.sqlite');
 unlink(PATH.'tmp/geoip.sqlite');
 echo " done.\n";
 ?>
