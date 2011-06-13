@@ -44,7 +44,7 @@ class GeoIP extends Object {
 
 	function isLocalNetwork($ip = null) {
 		$ip = $this->getIP($ip);
-		if ($ip == '127.0.0.1') {
+		if ($ip == '127.0.0.1' || $ip == '::1') {
 			return true;
 		}
 		$parts = explode('.', $_SERVER['SERVER_ADDR']); // Splits het server IP op in 4 stukken
