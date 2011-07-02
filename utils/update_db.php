@@ -2,7 +2,7 @@
 /**
  * De GeoIP database bijwerken
  */
-
+namespace SledgeHammer;
 require(dirname(__FILE__).'/../../core/init_framework.php');
 $tmpDir = PATH.'tmp/';
 //mkdirs($tmpDir);
@@ -25,9 +25,9 @@ if (file_exists($csvFile)) {
 }
 echo "  Extracting...";
 
-$archive = new ZipArchive();
+$archive = new \ZipArchive();
 if ($archive->open($zipFile) !== true) {
-	throw new Exception('Failed to open zipfile');
+	throw new \Exception('Failed to open zipfile');
 }
 $archive->extractTo($tmpDir);
 echo " done\n";
@@ -39,7 +39,7 @@ if (file_exists($dbFile)) {
 	unlink($dbFile);
 	sleep(1);
 }
-$db = new SQLiteDatabase($dbFile, 0600, $error); 
+$db = new \SQLiteDatabase($dbFile, 0600, $error); 
 if (!$db) {
 	error($error);
 }
@@ -60,7 +60,7 @@ $dbSchema = array(
 foreach ($dbSchema as $sql) {
 	$sql = trim($sql);
 	if ($sql != '' && $db->query($sql) == false) {
-		throw new Exception('Failed to import schema');
+		throw new \Exception('Failed to import schema');
 	}
 }
 
