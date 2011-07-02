@@ -2,9 +2,9 @@
 /**
  * Bepaal o.b.v. IP-adres het land van herkomst.
  * 
- * 
+ * @package GeoIP
  */
-
+namespace SledgeHammer;
 class GeoIP extends Object {
 
 	private 
