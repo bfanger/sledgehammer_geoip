@@ -16,12 +16,12 @@ class GeoIP extends Object {
 		if (file_exists($dbFile) == false) {
 			copy(dirname(__FILE__).'/../data/geoip.sqlite', $dbFile);
 		}
-		$this->db = new SQLiteDatabase($dbFile, 0600, $error); 
+		$this->db = new \SQLiteDatabase($dbFile, 0600, $error); 
 		if (!$this->db) {
-			throw new Exception($error);
+			throw new \Exception($error);
 		}
 		if (!$this->table_exists('country') || !$this->table_exists('ip2country')) {
-			throw new Exception('GeoIP database is corrupt, run `php sledgehammer/geoip/utils/upgrade.php`');
+			throw new \Exception('GeoIP database is corrupt, run `php sledgehammer/geoip/utils/upgrade.php`');
 		}
 		$countries = $this->db->query('SELECT code, name FROM country ORDER BY code ASC', SQLITE_ASSOC);
 		foreach ($countries as $row) {
@@ -67,7 +67,7 @@ class GeoIP extends Object {
 		$ip = $this->getIP($ip);
 		$code = $this->getCountryCode($country);
 		if ($code == false) {
-			throw new Exception('Unable to determime the country_code');
+			throw new \Exception('Unable to determime the country_code');
 		}
 		/*
 		if (false) { // No cache tables?
@@ -83,7 +83,7 @@ class GeoIP extends Object {
 			);
 			foreach ($sqlStatements as $sql) {
 				if (!$this->db->query($sql)) {
-					throw new Exception('Unable to create cache table');
+					throw new \Exception('Unable to create cache table');
 				}
 			}
 		}
