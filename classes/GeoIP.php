@@ -1,22 +1,22 @@
 <?php
 /**
  * Bepaal o.b.v. IP-adres het land van herkomst.
- * 
+ *
  * @package GeoIP
  */
 namespace SledgeHammer;
 class GeoIP extends Object {
 
-	private 
+	private
 		$db, // SQLite database
 		$countries;
 
 	function __construct() {
-		$dbFile = PATH.'tmp/geoip.sqlite';
+		$dbFile = TMP_DIR.'geoip.sqlite';
 		if (file_exists($dbFile) == false) {
 			copy(dirname(__FILE__).'/../data/geoip.sqlite', $dbFile);
 		}
-		$this->db = new \SQLiteDatabase($dbFile, 0600, $error); 
+		$this->db = new \SQLiteDatabase($dbFile, 0600, $error);
 		if (!$this->db) {
 			throw new \Exception($error);
 		}

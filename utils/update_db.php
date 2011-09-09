@@ -4,13 +4,11 @@
  */
 namespace SledgeHammer;
 require(dirname(__FILE__).'/../../core/init_framework.php');
-$tmpDir = PATH.'tmp/';
-//mkdirs($tmpDir);
 echo "\nUpgrading GeoIP database\n";
 
 // Download
 echo "  Downloading...";
-$zipFile = $tmpDir.'GeoIPCountryCSV.zip';
+$zipFile = TMP_DIR.'GeoIPCountryCSV.zip';
 if (file_exists($zipFile) == false || filemtime($zipFile) < (time() - 3600)) { // Is het gedownloade bestand ouder dan 1 uur?
 	wget('http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip', $zipFile);
 	echo " done\n"; flush();
@@ -19,7 +17,7 @@ if (file_exists($zipFile) == false || filemtime($zipFile) < (time() - 3600)) { /
 }
 
 // Unzip
-$csvFile = $tmpDir.'GeoIPCountryWhois.csv';
+$csvFile = TMP_DIR.'GeoIPCountryWhois.csv';
 if (file_exists($csvFile)) {
 	unlink($csvFile);
 }
@@ -29,17 +27,17 @@ $archive = new \ZipArchive();
 if ($archive->open($zipFile) !== true) {
 	throw new \Exception('Failed to open zipfile');
 }
-$archive->extractTo($tmpDir);
+$archive->extractTo(TMP_DIR);
 echo " done\n";
 
 // Rebuild
 echo "  Creating database...";
-$dbFile = PATH.'tmp/GeoIPCountry.sqlite';
+$dbFile = TMP_DIR.'GeoIPCountry.sqlite';
 if (file_exists($dbFile)) {
 	unlink($dbFile);
 	sleep(1);
 }
-$db = new \SQLiteDatabase($dbFile, 0600, $error); 
+$db = new \SQLiteDatabase($dbFile, 0600, $error);
 if (!$db) {
 	error($error);
 }
@@ -66,7 +64,7 @@ foreach ($dbSchema as $sql) {
 
 // Kolomnamen toevoegen
 //ini_set('memory_limit', '128M');
-file_put_contents($csvFile, "begin_ip,end_ip,begin_num,end_num,code,country\n".file_get_contents($csvFile)); 
+file_put_contents($csvFile, "begin_ip,end_ip,begin_num,end_num,code,country\n".file_get_contents($csvFile));
 
 // Eerst de countries importeren
 $csv = new CSVIterator($csvFile, null, ',');
@@ -98,8 +96,14 @@ foreach($csv as $index => $row) {
 	}
 }
 $db->query('COMMIT');
-echo " done\n  Upgrading module data...";
-copy($dbFile, dirname(__FILE__).'/../data/geoip.sqlite');
-unlink(PATH.'tmp/geoip.sqlite');
-echo " done.\n";
+echo " done\n  Upgrading files...";
+copy($dbFile, TMP_DIR.'geoip.sqlite');
+$filename = realpath(dirname(__FILE__).'/../data/geoip.sqlite');
+if (copy($dbFile, $filename)) {
+	echo " done.\n";
+} else {
+	echo " FAILED.\n";
+}
+
+
 ?>
