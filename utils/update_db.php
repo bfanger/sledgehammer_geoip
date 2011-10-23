@@ -4,6 +4,7 @@
  */
 namespace SledgeHammer;
 require(dirname(__FILE__).'/../../core/init_framework.php');
+$ErrorHandler->html = true;
 echo "\nUpgrading GeoIP database\n";
 
 // Download
@@ -37,11 +38,7 @@ if (file_exists($dbFile)) {
 	unlink($dbFile);
 	sleep(1);
 }
-$db = new \SQLiteDatabase($dbFile, 0600, $error);
-if (!$db) {
-	error($error);
-}
-
+$db = new Database('sqlite:'.$dbFile);
 
 $dbSchema = array(
 	'CREATE TABLE country (
@@ -56,8 +53,7 @@ $dbSchema = array(
 	'CREATE INDEX end_ix ON ip2country (end)'
 );
 foreach ($dbSchema as $sql) {
-	$sql = trim($sql);
-	if ($sql != '' && $db->query($sql) == false) {
+	if ($db->query($sql) == false) {
 		throw new \Exception('Failed to import schema');
 	}
 }
@@ -75,7 +71,7 @@ foreach($csv as $row) {
 	$rowCount++;
 }
 foreach ($countries as $code => $country) {
-	if (!$db->query('INSERT INTO country (code, name) VALUES ("'.sqlite_escape_string($code).'", "'.sqlite_escape_string($country).'")')) {
+	if (!$db->query('INSERT INTO country (code, name) VALUES ('.$db->quote($code).', '.$db->quote($country).')')) {
 		error('Failed to import countries');
 	}
 }
@@ -83,7 +79,7 @@ echo " done.\n";
 echo "  Importing data (";
 // Daarna alle ip-ranges importeren.
 echo $rowCount." records)\n    ";
-$db->query('BEGIN');
+$db->beginTransaction();
 $previousTs = microtime(true);
 foreach($csv as $index => $row) {
 	$now = microtime(true);
@@ -91,11 +87,11 @@ foreach($csv as $index => $row) {
 		echo round(($index / $rowCount) * 100), '% '; flush();
 		$previousTs = $now;
 	}
-	if (!$db->query('INSERT INTO ip2country (begin, end, country_code) VALUES ("'.sqlite_escape_string($row['begin_num']).'", "'.sqlite_escape_string($row['end_num']).'", "'.sqlite_escape_string($row['code']).'")')) {
+	if ($db->query('INSERT INTO ip2country (begin, end, country_code) VALUES ('.$db->quote($row['begin_num']).', '.$db->quote($row['end_num']).', '.$db->quote($row['code']).')') == false) {
 		error('Failed to import IP-ranges');
 	}
 }
-$db->query('COMMIT');
+$db->commit();
 echo " done\n  Upgrading files...";
 copy($dbFile, TMP_DIR.'geoip.sqlite');
 $filename = realpath(dirname(__FILE__).'/../data/geoip.sqlite');

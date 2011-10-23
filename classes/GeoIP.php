@@ -7,23 +7,22 @@
 namespace SledgeHammer;
 class GeoIP extends Object {
 
-	private
-		$db, // SQLite database
-		$countries;
+	/**
+	 * @var Database
+	 */
+	private	$db;
+	private	$countries;
 
 	function __construct() {
 		$dbFile = TMP_DIR.'geoip.sqlite';
 		if (file_exists($dbFile) == false) {
 			copy(dirname(__FILE__).'/../data/geoip.sqlite', $dbFile);
 		}
-		$this->db = new \SQLiteDatabase($dbFile, 0600, $error);
-		if (!$this->db) {
-			throw new \Exception($error);
-		}
+		$this->db = new Database('sqlite:'.$dbFile);
 		if (!$this->table_exists('country') || !$this->table_exists('ip2country')) {
 			throw new \Exception('GeoIP database is corrupt, run `php sledgehammer/geoip/utils/upgrade.php`');
 		}
-		$countries = $this->db->query('SELECT code, name FROM country ORDER BY code ASC', SQLITE_ASSOC);
+		$countries = $this->db->query('SELECT code, name FROM country ORDER BY code ASC');
 		foreach ($countries as $row) {
 			$this->countries[$row['code']] = $row['name'];
 		}
@@ -34,7 +33,7 @@ class GeoIP extends Object {
 	 */
 	function getCountry($ip = null) {
 		$ip = $this->getIP($ip);
-		$countryCode = $this->db->singleQuery('SELECT country_code FROM ip2country WHERE begin <= '.ip2long($ip).' AND end >= '.ip2long($ip));
+		$countryCode = $this->db->fetchValue('SELECT country_code FROM ip2country WHERE begin <= '.ip2long($ip).' AND end >= '.ip2long($ip));
 		if ($countryCode) {
 			return array('code' => $countryCode, 'country' => $this->countries[$countryCode]);
 		}
@@ -87,7 +86,7 @@ class GeoIP extends Object {
 				}
 			}
 		}
-		$found = $this->db->singleQuery('SELECT begin FROM '.$table.' WHERE begin <= '.ip2long($ip).' AND end >= '.ip2long($ip));
+		$found = $this->db->fetchValue('SELECT begin FROM '.$table.' WHERE begin <= '.ip2long($ip).' AND end >= '.ip2long($ip));
 		return ($found != false);
 	}
 
@@ -108,7 +107,7 @@ class GeoIP extends Object {
 	}
 
 	private function table_exists($table) {
-		return (bool) $this->db->singleQuery('SELECT count(*) FROM sqlite_master WHERE type="table" and name="'.sqlite_escape_string($table).'"');
+		return (bool) $this->db->fetchValue('SELECT count(*) FROM sqlite_master WHERE type="table" and name='.$this->db->quote($table));
 	}
 
 	/**
