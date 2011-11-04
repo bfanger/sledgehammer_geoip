@@ -1,52 +1,77 @@
 <?php
 /**
- * Bepaal o.b.v. IP-adres het land van herkomst.
+ * Determine the Country based on an IP-address
  *
  * @package GeoIP
  */
 namespace SledgeHammer;
+
 class GeoIP extends Object {
 
 	/**
-	 * @var Database
+	 * @var array  Code to Country mapping.
 	 */
-	private	$db;
-	private	$countries;
+	private static $countries;
 
 	function __construct() {
-		$dbFile = TMP_DIR.'geoip.sqlite';
-		if (file_exists($dbFile) == false) {
-			copy(dirname(__FILE__).'/../data/geoip.sqlite', $dbFile);
+		if (empty($GLOBALS['Databases']['_GeoIP_'])) {
+			$dbFile = TMP_DIR.'geoip.sqlite';
+			if (file_exists($dbFile) == false) {
+				copy(dirname(__FILE__).'/../data/geoip.sqlite', $dbFile);
+			}
+			$GLOBALS['Databases']['_GeoIP_'] = new Database('sqlite:'.$dbFile);
+			if (!$this->tableExists('country') || !$this->tableExists('ip2country')) {
+				throw new \Exception('GeoIP database is corrupt, run `php sledgehammer/geoip/utils/upgrade.php`');
+			}
 		}
-		$this->db = new Database('sqlite:'.$dbFile);
-		if (!$this->table_exists('country') || !$this->table_exists('ip2country')) {
-			throw new \Exception('GeoIP database is corrupt, run `php sledgehammer/geoip/utils/upgrade.php`');
-		}
-		$countries = $this->db->query('SELECT code, name FROM country ORDER BY code ASC');
-		foreach ($countries as $row) {
-			$this->countries[$row['code']] = $row['name'];
+		if (self::$countries === null) {
+			$db = getDatabase('_GeoIP_');
+			$countries = $db->query('SELECT code, name FROM country ORDER BY name ASC');
+			foreach ($countries as $row) {
+				self::$countries[$row['code']] = $row['name'];
+			}
 		}
 	}
 
 	/**
-	 * Vraag de landcode en de naam van het land op. (o.b.v. het IP-adres)
+	 * Determine the country based on an IP-address.
+	 *
+	 * @param string $ip  (optional) The IP-address, defaults to the client-IP
+	 * @return array  array('code' => $code, 'country' => $country)
 	 */
 	function getCountry($ip = null) {
-		$ip = $this->getIP($ip);
-		$countryCode = $this->db->fetchValue('SELECT country_code FROM ip2country WHERE begin <= '.ip2long($ip).' AND end >= '.ip2long($ip));
-		if ($countryCode) {
-			return array('code' => $countryCode, 'country' => $this->countries[$countryCode]);
+		if ($ip === null) {
+			$ip = $this->getClientIp();
+		}
+		$db = getDatabase('_GeoIP_');
+		$quotedLong = $db->quote(ip2long($ip), \PDO::PARAM_INT);
+		$code = $db->fetchValue('SELECT country_code FROM ip2country WHERE begin <= '.$quotedLong.' AND end >= '.$quotedLong, true);
+		if ($code) {
+			return array('code' => $code, 'country' => self::$countries[$code]);
 		}
 		notice('IP: "'.$ip.'" not found');
 		return false;
 	}
 
+	/**
+	 * Check if an IP is in the same network.
+	 *
+	 * @param string $ip  (optional) The IP-address, defaults to the client-IP
+	 * @return bool
+	 */
 	function isLocalNetwork($ip = null) {
-		$ip = $this->getIP($ip);
-		if ($ip == '127.0.0.1' || $ip == '::1') {
+		if ($ip === null) {
+			$ip = $this->getClientIp();
+		}
+		if ($ip === '127.0.0.1' || $ip === '::1') { // Is it on the same machine?
 			return true;
 		}
-		$parts = explode('.', $_SERVER['SERVER_ADDR']); // Splits het server IP op in 4 stukken
+		if ($_SERVER['SERVER_ADDR'] === '127.0.0.1' || $_SERVER['SERVER_ADDR'] === '::1') {
+			$server = gethostbyname(gethostname());
+		} else {
+			$server = $_SERVER['SERVER_ADDR'];
+		}
+		$parts = explode('.', $server); // Splits het server IP op in 4 stukken
 		$start = ip2long($parts[0].'.'.$parts[1].'.'.$parts[2].'.0'); // Ga uit van een netmask van 255.255.255.0
 		$end = ip2long($parts[0].'.'.$parts[1].'.'.$parts[2].'.255');
 		$ipNumber = ip2long($ip);
@@ -57,81 +82,85 @@ class GeoIP extends Object {
 	}
 
 	/**
-	 * Controleer of het ip zich in een land bevind
+	 * Check if an IP is located in a given country.
 	 *
-	 * @param string $country De country code of naam.
+	 * @param string $country  The country (Both code or name are supported)
+	 * @param string $ip  (optional) The IP-address, defaults to the client-IP
 	 * @return bool
 	 */
 	function inCountry($country, $ip = null) {
-		$ip = $this->getIP($ip);
 		$code = $this->getCountryCode($country);
 		if ($code == false) {
 			throw new \Exception('Unable to determime the country_code');
 		}
-		/*
-		if (false) { // No cache tables?
-			$found = $this->db->singleQuery('SELECT country_code FROM ip2country WHERE begin <= '.ip2long($ip).' AND end >= '.ip2long($ip));
-			return ($found == $code);
-		}*/
+		$country = $this->getCountry($ip);
+		return ($country['code'] == $code);
+		/* // Deprecated optimalisation. Creates a tmp table with only entries for the chosen language.
+		if ($ip === null) {
+			$ip = $this->getClientIp();
+		}
+		$db = getDatabase('_GeoIP_');
 		$table = 'ip_in_'.strtolower($code);
-		if (!$this->table_exists($table)) {
+		if (!$this->tableExists($table)) {
 			$sqlStatements = array(
 				'CREATE TABLE '.$table.' (begin UNSIGNED INTEGER PRIMAIRY KEY, end UNSIGNED INTEGER)',
 				'CREATE INDEX '.$code.'_end_ix ON '.$table.' (end)',
-				'INSERT INTO '.$table.' (begin, end) SELECT begin, end FROM ip2country WHERE country_code = "'.sqlite_escape_string($code).'"',
+				'INSERT INTO '.$table.' (begin, end) SELECT begin, end FROM ip2country WHERE country_code = '.$db->quote($code),
 			);
 			foreach ($sqlStatements as $sql) {
-				if (!$this->db->query($sql)) {
+				if (!$db->query($sql)) {
 					throw new \Exception('Unable to create cache table');
 				}
 			}
 		}
-		$found = $this->db->fetchValue('SELECT begin FROM '.$table.' WHERE begin <= '.ip2long($ip).' AND end >= '.ip2long($ip));
-		return ($found != false);
+		$quotedLong = $db->quote(ip2long($ip), \PDO::PARAM_INT);
+		return ($db->fetchValue('SELECT begin FROM '.$table.' WHERE begin <= '.$quotedLong.' AND end >= '.$quotedLong, true) != false);
+		 */
 	}
 
 	/**
- 	 * Zoek een IP in csv bestand en retourneer de gevonden rij.
+	 * Check if a table exists in the (sqlite) database.
 	 *
-	 * @return array|false Retourneert false als het ip niet voorkwam in het csv bestand.
- 	 */
-	private function search($file, $ip) {
-		$number = ip2long($ip);
-		$CSV = new CSVIterator($file, null,  ',');
-		foreach($CSV as $row) {
-			if ($number >= $row['begin_num'] && $number <= $row['end_num']) {
-				return $row;
-			}
-		}
-		return false;
-	}
-
-	private function table_exists($table) {
-		return (bool) $this->db->fetchValue('SELECT count(*) FROM sqlite_master WHERE type="table" and name='.$this->db->quote($table));
-	}
-
-	/**
-	 *
+	 * @param string $table
+	 * @return bool
 	 */
-	private function getIP($address) {
-		if ($address == null) {
-			$ip = $_SERVER['REMOTE_ADDR'];
-		} else {
-			$ip = $address;
+	private function tableExists($table) {
+		static $tables = array();
+		if (isset($tables[$table]) === false) {
+			$db = getDatabase('_GeoIP_');
+			$tables[$table] = (bool) $db->fetchValue('SELECT count(*) FROM sqlite_master WHERE type="table" AND name='.$db->quote($table));
 		}
-		return $ip;
+		return $tables[$table];
 	}
 
+	/**
+	 * Validate adn return the code or lookup the country-name and return the code.
+	 *
+	 * @param string $country  Code or Country name
+	 * @return string  Country code
+	 */
 	private function getCountryCode($country) {
-		if (isset($this->countries[$country])) { //is het al een code?
+		if (isset(self::$countries[$country])) { // $country is a code? NL, US, etc
 			return $country;
 		}
-		$code = array_search($country, $this->countries);
+		$code = array_search($country, self::$countries); // Lookup the country name based on the name. "Netherlands", "Australia", etc
 		if ($code) {
 			return $code;
 		}
-		notice('Country: "'.$country.'" is unknown', array('Available codes/countries' => $this->countries));
+		notice('Country: "'.$country.'" is unknown', array('Available codes/countries' => self::$countries));
 		return false;
 	}
+
+	/**
+	 * @return string  The IP-address of the client/browser
+	 */
+	private function getClientIp() {
+		if ($_SERVER['REMOTE_ADDR'] === '::1' || $_SERVER['REMOTE_ADDR'] === '127.0.0.1') {
+			return '127.0.0.1';
+		}
+		return getClientIp();
+	}
+
 }
+
 ?>

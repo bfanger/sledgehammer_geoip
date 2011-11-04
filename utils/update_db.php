@@ -9,7 +9,8 @@ echo "\nUpgrading GeoIP database\n";
 
 // Download
 echo "  Downloading...";
-$zipFile = TMP_DIR.'GeoIPCountryCSV.zip';
+mkdirs(TMP_DIR.'GeoIP_update');
+$zipFile = TMP_DIR.'GeoIP_update/CountryCSV.zip';
 if (file_exists($zipFile) == false || filemtime($zipFile) < (time() - 3600)) { // Is het gedownloade bestand ouder dan 1 uur?
 	wget('http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip', $zipFile);
 	echo " done\n"; flush();
@@ -18,7 +19,7 @@ if (file_exists($zipFile) == false || filemtime($zipFile) < (time() - 3600)) { /
 }
 
 // Unzip
-$csvFile = TMP_DIR.'GeoIPCountryWhois.csv';
+$csvFile = TMP_DIR.'GeoIP_update/GeoIPCountryWhois.csv';
 if (file_exists($csvFile)) {
 	unlink($csvFile);
 }
@@ -28,12 +29,12 @@ $archive = new \ZipArchive();
 if ($archive->open($zipFile) !== true) {
 	throw new \Exception('Failed to open zipfile');
 }
-$archive->extractTo(TMP_DIR);
+$archive->extractTo(TMP_DIR.'GeoIP_update/');
 echo " done\n";
 
 // Rebuild
 echo "  Creating database...";
-$dbFile = TMP_DIR.'GeoIPCountry.sqlite';
+$dbFile = TMP_DIR.'GeoIP_update/Country.sqlite';
 if (file_exists($dbFile)) {
 	unlink($dbFile);
 	sleep(1);
