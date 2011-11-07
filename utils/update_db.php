@@ -1,9 +1,12 @@
 <?php
 /**
- * De GeoIP database bijwerken
+ * Update the GeoIP database to the latest version from maxmind.com
  */
 namespace SledgeHammer;
 require(dirname(__FILE__).'/../../core/init_framework.php');
+
+$VERBOSE = false; // true: Include additional info into the geoip database
+
 $ErrorHandler->html = true;
 echo "\nUpgrading GeoIP database\n";
 
@@ -40,24 +43,29 @@ if (file_exists($dbFile)) {
 	sleep(1);
 }
 $db = new Database('sqlite:'.$dbFile);
+$GLOBALS['Databases']['GeoIP_update'] = $db;
+$db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); // end script on a sql error
 
-$dbSchema = array(
-	'CREATE TABLE country (
-		code CHAR(2) PRIMARY KEY,
-		name VARCHAR(150) NOT NULL
-	)',
-	'CREATE TABLE ip2country (
+$db->query('CREATE TABLE country (
+	code CHAR(2) PRIMARY KEY,
+	name VARCHAR(150) NOT NULL
+)');
+if ($VERBOSE) {
+	$db->query('CREATE TABLE ip2country (
+		begin  UNSIGNED INTEGER PRIMARY KEY,
+		end    UNSIGNED INTEGER NOT NULL,
+		ip_begin TEXT NOT NULL,
+		ip_end TEXT NOT NULL,
+		country_code CHAR(2) NOT NULL REFERENCES country(code)
+	)');
+} else {
+	$db->query('CREATE TABLE ip2country (
 		begin  UNSIGNED INTEGER PRIMARY KEY,
 		end    UNSIGNED INTEGER NOT NULL,
 		country_code CHAR(2) NOT NULL REFERENCES country(code)
-	)',
-	'CREATE INDEX end_ix ON ip2country (end)'
-);
-foreach ($dbSchema as $sql) {
-	if ($db->query($sql) == false) {
-		throw new \Exception('Failed to import schema');
-	}
+	)');
 }
+$db->query('CREATE INDEX end_ix ON ip2country (end)');
 
 // Kolomnamen toevoegen
 //ini_set('memory_limit', '128M');
@@ -71,26 +79,37 @@ foreach($csv as $row) {
 	$countries[$row['code']] = $row['country'];
 	$rowCount++;
 }
+$db->beginTransaction();
 foreach ($countries as $code => $country) {
-	if (!$db->query('INSERT INTO country (code, name) VALUES ('.$db->quote($code).', '.$db->quote($country).')')) {
-		error('Failed to import countries');
-	}
+	$db->query('INSERT INTO country (code, name) VALUES ('.$db->quote($code).', '.$db->quote($country).')');
 }
 echo " done.\n";
 echo "  Importing data (";
 // Daarna alle ip-ranges importeren.
 echo $rowCount." records)\n    ";
-$db->beginTransaction();
 $previousTs = microtime(true);
+if ($VERBOSE) {
+	$statement = $db->prepare('INSERT INTO ip2country (begin, end, ip_begin, ip_end, country_code) VALUES (:begin, :end, :ip_begin, :ip_end, :country_code)');
+} else {
+	$statement = $db->prepare('INSERT INTO ip2country (begin, end, country_code) VALUES (:begin, :end, :country_code)');
+}
 foreach($csv as $index => $row) {
 	$now = microtime(true);
 	if ($previousTs < ($now - 1)) {
 		echo round(($index / $rowCount) * 100), '% '; flush();
 		$previousTs = $now;
 	}
-	if ($db->query('INSERT INTO ip2country (begin, end, country_code) VALUES ('.$db->quote($row['begin_num']).', '.$db->quote($row['end_num']).', '.$db->quote($row['code']).')') == false) {
-		error('Failed to import IP-ranges');
+	$params = array(
+		'begin'=> $row['begin_num'],
+		'end'=> $row['end_num'],
+		'country_code' => $row['code']
+	);
+	if ($VERBOSE) {
+		$params['ip_begin'] = $row['begin_ip'];
+		$params['ip_end'] = $row['end_ip'];
 	}
+	$statement->execute($params);
+
 }
 $db->commit();
 echo " done\n  Upgrading files...";
