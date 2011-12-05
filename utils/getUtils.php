@@ -1,5 +1,7 @@
 <?php
+namespace SledgeHammer;
 return array(
-	'update_db.php' => new SledgeHammer\UtilScript('update_db.php', 'Update GeoIP database'),
+	'lookup.php' => new GeoIPLookupUtil(),
+	'update_db.php' => new UtilScript('update_db.php', 'Update GeoIP database'),
 );
 ?>

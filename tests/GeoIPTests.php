@@ -6,7 +6,7 @@
  */
 namespace SledgeHammer;
 
-class GeoIPTests extends \UnitTestCase {
+class GeoIPTests extends TestCase {
 
 	function test_local_network() {
 		$geo = new GeoIP();
