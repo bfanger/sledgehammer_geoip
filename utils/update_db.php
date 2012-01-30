@@ -72,7 +72,7 @@ $db->query('CREATE INDEX end_ix ON ip2country (end)');
 file_put_contents($csvFile, "begin_ip,end_ip,begin_num,end_num,code,country\n".file_get_contents($csvFile));
 
 // Eerst de countries importeren
-$csv = new CSVIterator($csvFile, null, ',');
+$csv = new CSV($csvFile, null, ',');
 $countries = array();
 $rowCount = 0;
 foreach($csv as $row) {
