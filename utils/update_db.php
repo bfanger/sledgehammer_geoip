@@ -15,7 +15,7 @@ echo "  Downloading...";
 mkdirs(TMP_DIR.'GeoIP_update');
 $zipFile = TMP_DIR.'GeoIP_update/CountryCSV.zip';
 if (file_exists($zipFile) == false || filemtime($zipFile) < (time() - 3600)) { // Is het gedownloade bestand ouder dan 1 uur?
-	wget('http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip', $zipFile);
+	cURL::download('http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip', $zipFile);
 	echo " done\n"; flush();
 } else {
 	echo " skipped\n";

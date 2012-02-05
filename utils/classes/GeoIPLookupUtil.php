@@ -7,7 +7,7 @@ namespace SledgeHammer;
 class GeoIPLookupUtil extends Util {
 
 	function __construct() {
-		parent::__construct('Geolocation for IP', '../module_icons/geoip.png');
+		parent::__construct('Geolocation for IP', 'module_icons/geoip.png');
 	}
 
 	function generateContent() {
@@ -24,7 +24,7 @@ class GeoIPLookupUtil extends Util {
 				array('method' => 'get'),
 				array(
 					new FieldLabel('IP address', new Input('text', 'ip')),
-					new Input('submit', '', array('value' => 'Go')
+					new Input('submit', '', array('value' => 'Lookup', 'class' => 'btn btn-primary btn-small')
 				)
 			));
 		}
