@@ -43,7 +43,7 @@ if (file_exists($dbFile)) {
 	sleep(1);
 }
 $db = new Database('sqlite:'.$dbFile);
-$GLOBALS['Databases']['GeoIP_update'] = $db;
+$GLOBALS['SledgeHammer']['Databases']['GeoIP_update'] = $db;
 $db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); // end script on a sql error
 
 $db->query('CREATE TABLE country (

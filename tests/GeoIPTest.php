@@ -6,7 +6,7 @@
  */
 namespace SledgeHammer;
 
-class GeoIPTests extends TestCase {
+class GeoIPTest extends TestCase {
 
 	function test_local_network() {
 		$geo = new GeoIP();
@@ -19,11 +19,11 @@ class GeoIPTests extends TestCase {
 		$geo = new GeoIP();
 		$nl = gethostbyname('nu.nl'); // IP in the Netherlands
 		$us = gethostbyname('google.com'); // IP in the US
-		$this->assertEqual($geo->getCountry($nl), array(
+		$this->assertEquals($geo->getCountry($nl), array(
 			'code' => 'NL',
 			'country' => 'Netherlands',
 		));
-		$this->assertEqual($geo->getCountry($us), array(
+		$this->assertEquals($geo->getCountry($us), array(
 			'code' => 'US',
 			'country' => 'United States',
 		));
