@@ -14,12 +14,12 @@ class GeoIP extends Object {
 	private static $countries;
 
 	function __construct() {
-		if (empty($GLOBALS['SledgeHammer']['Databases']['_GeoIP_'])) {
+		if (empty(Database::$instances['_GeoIP_'])) {
 			$dbFile = TMP_DIR.'geoip.sqlite';
 			if (file_exists($dbFile) == false) {
 				copy(dirname(__FILE__).'/../data/geoip.sqlite', $dbFile);
 			}
-			$GLOBALS['SledgeHammer']['Databases']['_GeoIP_'] = new Database('sqlite:'.$dbFile);
+			Database::$instances['_GeoIP_'] = new Database('sqlite:'.$dbFile);
 			if (!$this->tableExists('country') || !$this->tableExists('ip2country')) {
 				throw new \Exception('GeoIP database is corrupt, run `php sledgehammer/geoip/utils/upgrade.php`');
 			}

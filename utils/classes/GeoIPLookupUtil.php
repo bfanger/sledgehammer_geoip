@@ -15,7 +15,7 @@ class GeoIPLookupUtil extends Util {
 			'path' => dirname($this->paths['utils'])
 		);
 		if (isset($_GET['ip'])) {
-			$GLOBALS['AutoLoader']->importModule($module);
+			Framework::$autoLoader->importModule($module);
 			$geoip = new GeoIP();
 			$result = $geoip->getCountry(value($_GET['ip']));
 			return new MessageBox('done', 'Maxmind GeoIP', 'IP: <b>'.$_GET['ip'].'</b> is located in <b>'.$result['country'].'</b> ('.$result['code'].')', '');

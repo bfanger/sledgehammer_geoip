@@ -7,7 +7,6 @@ require(dirname(__FILE__).'/../../core/init_framework.php');
 
 $VERBOSE = false; // true: Include additional info into the geoip database
 
-$ErrorHandler->html = true;
 echo "\nUpgrading GeoIP database\n";
 
 // Download
@@ -43,7 +42,7 @@ if (file_exists($dbFile)) {
 	sleep(1);
 }
 $db = new Database('sqlite:'.$dbFile);
-$GLOBALS['SledgeHammer']['Databases']['GeoIP_update'] = $db;
+Database::$instances['GeoIP_update'] = $db;
 $db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION); // end script on a sql error
 
 $db->query('CREATE TABLE country (
