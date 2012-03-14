@@ -9,6 +9,9 @@ namespace SledgeHammer;
 class GeoIPTest extends TestCase {
 
 	function test_local_network() {
+		if (empty($_SERVER['SERVER_ADDR'])) {
+			$this->markTestSkipped('Client IP unknown');
+		}
 		$geo = new GeoIP();
 		$this->assertTrue($geo->isLocalNetwork('127.0.0.1'));
 		$this->assertTrue($geo->isLocalNetwork($_SERVER['SERVER_ADDR']));
